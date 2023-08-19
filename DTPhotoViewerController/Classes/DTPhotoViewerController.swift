@@ -654,20 +654,20 @@ extension DTPhotoViewerController {
     // For each reuse identifier that the collection view will use, register either a class or a nib from which to instantiate a cell.
     // If a nib is registered, it must contain exactly 1 top level object which is a DTPhotoCollectionViewCell.
     // If a class is registered, it will be instantiated via alloc/initWithFrame:
-    open func registerClassPhotoViewer(_ cellClass: Swift.AnyClass?) {
+    public func registerClassPhotoViewer(_ cellClass: Swift.AnyClass?) {
         collectionView.register(cellClass, forCellWithReuseIdentifier: kPhotoCollectionViewCellIdentifier)
     }
     
-    open func registerNibForPhotoViewer(_ nib: UINib?) {
+    public func registerNibForPhotoViewer(_ nib: UINib?) {
         collectionView.register(nib, forCellWithReuseIdentifier: kPhotoCollectionViewCellIdentifier)
     }
     
     // Update data before calling theses methods
-    open func reloadData() {
+    public func reloadData() {
         collectionView.reloadData()
     }
     
-    open func insertPhotos(at indexes: [Int], completion: ((Bool) -> Void)?) {
+    public func insertPhotos(at indexes: [Int], completion: ((Bool) -> Void)?) {
         let indexPaths = indexPathsForIndexes(indexes: indexes)
         
         collectionView.performBatchUpdates({
@@ -675,7 +675,7 @@ extension DTPhotoViewerController {
         }, completion: completion)
     }
     
-    open func deletePhotos(at indexes: [Int], completion: ((Bool) -> Void)?) {
+    public func deletePhotos(at indexes: [Int], completion: ((Bool) -> Void)?) {
         let indexPaths = indexPathsForIndexes(indexes: indexes)
         
         collectionView.performBatchUpdates({
@@ -683,20 +683,20 @@ extension DTPhotoViewerController {
         }, completion: completion)
     }
     
-    open func reloadPhotos(at indexes: [Int]) {
+    public func reloadPhotos(at indexes: [Int]) {
         let indexPaths = indexPathsForIndexes(indexes: indexes)
         
         collectionView.reloadItems(at: indexPaths)
     }
     
-    open func movePhoto(at index: Int, to newIndex: Int) {
+    public func movePhoto(at index: Int, to newIndex: Int) {
         let indexPath = IndexPath(item: index, section: 0)
         let newIndexPath = IndexPath(item: newIndex, section: 0)
         
         collectionView.moveItem(at: indexPath, to: newIndexPath)
     }
     
-    open func scrollToPhoto(at index: Int, animated: Bool) {
+    public func scrollToPhoto(at index: Int, animated: Bool) {
         if collectionView.numberOfItems(inSection: 0) > index {
             let indexPath = IndexPath(item: index, section: 0)
             
@@ -732,7 +732,7 @@ extension DTPhotoViewerController {
 
 //MARK: DTPhotoCollectionViewCellDelegate
 extension DTPhotoViewerController: DTPhotoCollectionViewCellDelegate {
-    open func collectionViewCellDidZoomOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
+    public func collectionViewCellDidZoomOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
         if let indexPath = collectionView.indexPath(for: cell) {
             // Method to override
             didZoomOnPhoto(at: indexPath.row, atScale: scale)
@@ -742,7 +742,7 @@ extension DTPhotoViewerController: DTPhotoCollectionViewCellDelegate {
         }
     }
     
-    open func collectionViewCellDidEndZoomingOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
+    public func collectionViewCellDidEndZoomingOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
         if let indexPath = collectionView.indexPath(for: cell) {
             // Method to override
             didEndZoomingOnPhoto(at: indexPath.row, atScale: scale)
@@ -752,7 +752,7 @@ extension DTPhotoViewerController: DTPhotoCollectionViewCellDelegate {
         }
     }
     
-    open func collectionViewCellWillZoomOnPhoto(_ cell: DTPhotoCollectionViewCell) {
+    public func collectionViewCellWillZoomOnPhoto(_ cell: DTPhotoCollectionViewCell) {
         if let indexPath = collectionView.indexPath(for: cell) {
             // Method to override
             willZoomOnPhoto(at: indexPath.row)

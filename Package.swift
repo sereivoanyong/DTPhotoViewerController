@@ -1,11 +1,11 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.10
 
 import PackageDescription
 
 let package = Package(
     name: "DTPhotoViewerController",
     platforms: [
-        .iOS(.v10),
+        .iOS(.v12),
     ],
     products: [
         .library(name: "DTPhotoViewerController", targets: ["DTPhotoViewerController"]),
