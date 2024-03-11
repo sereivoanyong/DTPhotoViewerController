@@ -8,11 +8,12 @@ let package = Package(
         .iOS(.v12),
     ],
     products: [
-        .library(name: "DTPhotoViewerController", targets: ["DTPhotoViewerController"]),
+        .library(name: "DTPhotoViewerController", targets: ["DTPhotoViewerController"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/onevcat/Kingfisher", from: "7.12.0")
     ],
     targets: [
-        .target(
-            name: "DTPhotoViewerController",
-            path: "DTPhotoViewerController/Classes"),
+        .target(name: "DTPhotoViewerController", dependencies: ["Kingfisher"], path: "DTPhotoViewerController/Classes"),
     ]
 )

@@ -9,6 +9,7 @@
 import UIKit
 import AVKit
 import Photos
+import Kingfisher
 
 private let kPhotoCollectionViewCellIdentifier = "Cell"
 
@@ -76,7 +77,7 @@ open class DTPhotoViewerController: UIViewController {
     
     /// This is the image view that is mainly used for the presentation and dismissal effect.
     /// How it animates from the original view to fullscreen and vice versa.
-    public fileprivate(set) var imageView: UIImageView
+    public fileprivate(set) var imageView: DTImageView
     
     /// The view where photo viewer originally animates from.
     /// Provide this correctly so that you can have a nice effect.
@@ -116,7 +117,7 @@ open class DTPhotoViewerController: UIViewController {
     /// Customizable if you wish to provide your own transitions.
     open lazy var animator: DTPhotoViewerBaseAnimator = DTPhotoAnimator()
     
-    public init(referencedView: UIView?, image: UIImage?) {
+    public init(referencedView: UIView?, resource: Resource?) {
         let flowLayout = DTCollectionViewFlowLayout()
         flowLayout.scrollDirection = scrollDirection
         flowLayout.sectionInset = UIEdgeInsets.zero
@@ -132,14 +133,13 @@ open class DTPhotoViewerController: UIViewController {
         backgroundView = UIView(frame: CGRect.zero)
         
         // Image view
-        let newImageView = DTImageView(frame: CGRect.zero)
-        imageView = newImageView
+        imageView = DTImageView(frame: CGRect.zero)
         
         super.init(nibName: nil, bundle: nil)
         
         transitioningDelegate = self
         
-        imageView.image = image
+        imageView.kf.setImage(with: resource)
         self.referencedView = referencedView
         collectionView.dataSource = self
         
@@ -170,17 +170,17 @@ open class DTPhotoViewerController: UIViewController {
         
         //Image view
         // Configure this block for changing image size when image changed
-        (imageView as? DTImageView)?.imageChangeBlock = {[weak self](image: UIImage?) -> Void in
+        imageView.imageChangeBlock = { [weak self] image in
             // Update image frame whenever image changes and when the imageView is not being visible
             // imageView is only being visible during presentation or dismissal
             // For that reason, we should not update frame of imageView no matter what.
-            if let strongSelf = self, let image = image, strongSelf.imageView.isHidden == true {
-                strongSelf.imageView.frame.size = strongSelf.imageViewSizeForImage(image)
-                strongSelf.imageView.center = strongSelf.view.center
+            if let self, let image, imageView.isHidden {
+                imageView.frame.size = imageViewSizeForImage(image)
+                imageView.center = view.center
                 
                 // No datasource, only 1 item in collection view --> reloadData
-                guard let _ = strongSelf.dataSource else {
-                    strongSelf.collectionView.reloadData()
+                guard let _ = dataSource else {
+                    collectionView.reloadData()
                     return
                 }
             }
@@ -223,7 +223,7 @@ open class DTPhotoViewerController: UIViewController {
         scrollView.frame = view.bounds
         
         // Update iamge view frame everytime view changes frame
-        (imageView as? DTImageView)?.imageChangeBlock?(imageView.image)
+        imageView.imageChangeBlock?(imageView.image)
     }
     
     open override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {

@@ -8,8 +8,8 @@
 
 import UIKit
 
-class DTImageView: UIImageView {    
-    override var image: UIImage? {
+open class DTImageView: UIImageView {
+    open override var image: UIImage? {
         didSet {
             imageChangeBlock?(image)
         }
