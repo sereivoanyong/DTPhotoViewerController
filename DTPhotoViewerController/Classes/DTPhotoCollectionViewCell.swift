@@ -9,15 +9,17 @@
 import UIKit
 
 public protocol DTPhotoCollectionViewCellDelegate: NSObjectProtocol {
+
     func collectionViewCellDidZoomOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat)
     func collectionViewCellWillZoomOnPhoto(_ cell: DTPhotoCollectionViewCell)
     func collectionViewCellDidEndZoomingOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat)
 }
 
 open class DTPhotoCollectionViewCell: UICollectionViewCell {
-    public private(set) var scrollView: DTScrollView!
-    public private(set) var imageView: UIImageView!
-    
+
+    public let scrollView: DTScrollView = DTScrollView(frame: .zero)
+    public let imageView: DTImageView = DTImageView(frame: .zero)
+
     // default is 1.0
     open var minimumZoomScale: CGFloat = 1.0 {
         willSet {
@@ -42,7 +44,6 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
                 scrollView.maximumZoomScale = newValue
             }
         }
-        
         didSet {
             correctCurrentZoomScaleIfNeeded()
         }
@@ -55,8 +56,8 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
         commonInit()
     }
     
-    required public init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
         commonInit()
     }
     
@@ -66,39 +67,35 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
     }
     
     private func commonInit() {
-        backgroundColor = UIColor.clear
+        backgroundColor = .clear
         isUserInteractionEnabled = true
-        scrollView = DTScrollView(frame: CGRect.zero)
+
+        scrollView.frame = contentView.bounds
+        scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
         scrollView.minimumZoomScale = minimumZoomScale
         scrollView.maximumZoomScale = 1.0 // Not allow zooming when there is no image
-        
-        let imageView = DTImageView(frame: CGRect.zero)
-        // Layout subviews every time getting new image
-        imageView.imageChangeBlock = { [weak self] image in
-            // Update image frame whenever image changes
-            if let strongSelf = self {
-                if image == nil {
-                    strongSelf.scrollView.minimumZoomScale = 1.0
-                    strongSelf.scrollView.maximumZoomScale = 1.0
-                } else {
-                    strongSelf.scrollView.minimumZoomScale = strongSelf.minimumZoomScale
-                    strongSelf.scrollView.maximumZoomScale = strongSelf.maximumZoomScale
-                    strongSelf.setNeedsLayout()
-                }
-                strongSelf.correctCurrentZoomScaleIfNeeded()
-            }
-        }
-        
-        imageView.contentMode = .scaleAspectFit
-        self.imageView = imageView
-        
         scrollView.delegate = self
         contentView.addSubview(scrollView)
-        scrollView.addSubview(imageView)
-        
-        if #available(iOS 11.0, *) {
-            scrollView.contentInsetAdjustmentBehavior = .never
+
+        // Layout subviews every time getting new image
+        imageView.imageChangeBlock = { [weak self] image in
+            guard let self else { return }
+            // Update image frame whenever image changes
+            if image == nil {
+                scrollView.minimumZoomScale = 1.0
+                scrollView.maximumZoomScale = 1.0
+            } else {
+                scrollView.minimumZoomScale = minimumZoomScale
+                scrollView.maximumZoomScale = maximumZoomScale
+                setNeedsLayout()
+            }
+            correctCurrentZoomScaleIfNeeded()
         }
+        imageView.contentMode = .scaleAspectFit
+        scrollView.addSubview(imageView)
     }
     
     private func correctCurrentZoomScaleIfNeeded() {
@@ -111,9 +108,8 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
         }
     }
     
-    override open func layoutSubviews() {
+    open override func layoutSubviews() {
         super.layoutSubviews()
-        scrollView.frame = bounds
         
         //Set the aspect ration of the image
         if let image = imageView.image {
@@ -154,7 +150,7 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
                 // After updating scrollView's zoomScale, imageView's size will be updated
                 // We need to revert it back to its original size.
                 let imageViewSize = imageView.frame.size
-                scrollView.setZoomScale(newZoomScale, animated: false)
+                scrollView.zoomScale = newZoomScale
                 imageView.frame.size = imageViewSize // CGSize(width: width * newZoomScale, height: height * newZoomScale)
                 scrollView.contentSize = imageViewSize
             } else {
@@ -168,8 +164,10 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
     }
 }
 
-//MARK: - UIScrollViewDelegate
+// MARK: - UIScrollViewDelegate
+
 extension DTPhotoCollectionViewCell: UIScrollViewDelegate {
+
     public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return imageView
     }
@@ -179,8 +177,8 @@ extension DTPhotoCollectionViewCell: UIScrollViewDelegate {
     }
     
     public func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        updateImageViewFrameForSize(frame.size)
-        
+        updateImageViewFrameForSize(contentView.frame.size)
+
         delegate?.collectionViewCellDidZoomOnPhoto(self, atScale: scrollView.zoomScale)
     }
     
@@ -192,7 +190,7 @@ extension DTPhotoCollectionViewCell: UIScrollViewDelegate {
         delegate?.collectionViewCellDidEndZoomingOnPhoto(self, atScale: scale)
     }
     
-    fileprivate func updateImageViewFrameForSize(_ size: CGSize) {
+    private func updateImageViewFrameForSize(_ size: CGSize) {
         
         let y = max(0, (size.height - imageView.frame.height) / 2)
         let x = max(0, (size.width - imageView.frame.width) / 2)

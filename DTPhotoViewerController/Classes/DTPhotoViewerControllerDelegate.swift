@@ -9,6 +9,7 @@
 import UIKit
 
 @objc public protocol DTPhotoViewerControllerDelegate: NSObjectProtocol {
+  
     @objc optional func photoViewerController(_ photoViewerController: DTPhotoViewerController, didScrollToPhotoAt index: Int)
     
     @objc optional func photoViewerController(_ photoViewerController: DTPhotoViewerController, didZoomOnPhotoAtIndex: Int, atScale scale: CGFloat)

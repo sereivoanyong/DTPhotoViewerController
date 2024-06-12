@@ -14,52 +14,51 @@ import Kingfisher
 private let kPhotoCollectionViewCellIdentifier = "Cell"
 
 open class DTPhotoViewerController: UIViewController {
+
     /// Scroll direction
-    /// Default value is UICollectionViewScrollDirectionVertical
-    public var scrollDirection: UICollectionView.ScrollDirection = UICollectionView.ScrollDirection.horizontal {
-        didSet {
-            // Update collection view flow layout
-            (collectionView.collectionViewLayout as? UICollectionViewFlowLayout)?.scrollDirection = scrollDirection
-        }
+    /// Default is `.horizontal`.
+    open var scrollDirection: UICollectionView.ScrollDirection {
+        get { return collectionViewLayout.scrollDirection }
+        set { collectionViewLayout.scrollDirection = newValue }
     }
     
     /// Datasource
     /// Providing number of image items to controller and how to confiure image for each image view in it.
-    public weak var dataSource: DTPhotoViewerControllerDataSource?
-    
+    open weak var dataSource: DTPhotoViewerControllerDataSource?
+
     /// Delegate
-    public weak var delegate: DTPhotoViewerControllerDelegate?
-    
+    open weak var delegate: DTPhotoViewerControllerDelegate?
+
     /// Indicates if status bar should be hidden after photo viewer controller is presented.
-    /// Default value is true
-    open var shouldHideStatusBarOnPresent = true
-    
-    /// Indicates status bar style when photo viewer controller is being presenting
-    /// Default value if UIStatusBarStyle.default
-    open var statusBarStyleOnPresenting: UIStatusBarStyle = UIStatusBarStyle.default
-    
+    /// Default is `true`.
+    open var shouldHideStatusBarOnPresent: Bool = true
+
     /// Indicates status bar animation style when changing hidden status
-    /// Default value if UIStatusBarStyle.fade
-    open var statusBarAnimationStyle: UIStatusBarAnimation = UIStatusBarAnimation.fade
+    /// Default is `.fade`.
+    open var statusBarAnimationStyle: UIStatusBarAnimation = .fade
+
+    /// Indicates status bar style when photo viewer controller is being presenting
+    /// Default is `.default`.
+    open var statusBarStyleOnPresenting: UIStatusBarStyle = .default
     
     /// Indicates status bar style after photo viewer controller is being dismissing
     /// Include when pan gesture recognizer is active.
-    /// Default value if UIStatusBarStyle.LightContent
-    open var statusBarStyleOnDismissing: UIStatusBarStyle = UIStatusBarStyle.lightContent
+    /// Default is `.lightContent`.
+    open var statusBarStyleOnDismissing: UIStatusBarStyle = .lightContent
     
     /// Background color of the viewer.
-    /// Default value is black.
-    open var backgroundColor: UIColor = UIColor.black {
+    /// Default is `.black`.
+    open var backgroundColor: UIColor = .black {
         didSet {
-            backgroundView.backgroundColor = backgroundColor
+            backgroundView?.backgroundColor = backgroundColor
         }
     }
     
     /// Indicates if referencedView should be shown or hidden automatically during presentation and dismissal.
     /// Setting automaticallyUpdateReferencedViewVisibility to false means you need to update isHidden property of this view by yourself.
     /// Setting automaticallyUpdateReferencedViewVisibility will also set referencedView isHidden property to false.
-    /// Default value is true
-    open var automaticallyUpdateReferencedViewVisibility = true {
+    /// Default is `true`.
+    open var automaticallyUpdateReferencedViewVisibility: Bool = true {
         didSet {
             if !automaticallyUpdateReferencedViewVisibility {
                 referencedView?.isHidden = false
@@ -68,161 +67,154 @@ open class DTPhotoViewerController: UIViewController {
     }
     
     /// Indicates where image should be scaled smaller when being dragged.
-    /// Default value is true.
-    open var scaleWhileDragging = true
-    
+    /// Default is `true`.
+    open var scaleWhileDragging: Bool = true
+
     /// This variable sets original frame of image view to animate from
-    open fileprivate(set) var referenceSize: CGSize = CGSize.zero
-    
+    open private(set) var referenceSize: CGSize = .zero
     
     /// This is the image view that is mainly used for the presentation and dismissal effect.
     /// How it animates from the original view to fullscreen and vice versa.
-    public fileprivate(set) var imageView: DTImageView
+    public private(set) var imageView: DTImageView
     
     /// The view where photo viewer originally animates from.
     /// Provide this correctly so that you can have a nice effect.
-    public weak internal(set) var referencedView: UIView? {
-        didSet {
+    public weak private(set) var referencedView: UIView? {
+        willSet {
             // Unhide old referenced view and hide the new one
-            oldValue?.isHidden = false
+            referencedView?.isHidden = false
+        }
+        didSet {
             if automaticallyUpdateReferencedViewVisibility {
                 referencedView?.isHidden = true
             }
         }
     }
-    
+
+    let collectionViewLayout: DTCollectionViewFlowLayout = {
+        let collectionViewLayout = DTCollectionViewFlowLayout()
+        collectionViewLayout.minimumLineSpacing = 0
+        collectionViewLayout.minimumInteritemSpacing = 0
+        collectionViewLayout.scrollDirection = .horizontal
+        collectionViewLayout.sectionInset = .zero
+        return collectionViewLayout
+    }()
+
     /// Collection view.
     /// This will be used when displaying multiple images.
-    fileprivate(set) var collectionView: UICollectionView
+    var collectionView: UICollectionView!
     public var scrollView: UIScrollView {
         return collectionView
     }
     
     /// View used for fading effect during presentation and dismissal animation or when controller is being dragged.
-    public internal(set) var backgroundView: UIView
-    
+    public private(set) var backgroundView: UIView!
+
     /// Pan gesture for dragging controller
-    public internal(set) var panGestureRecognizer: UIPanGestureRecognizer!
-    
+    public private(set) var panGestureRecognizer: UIPanGestureRecognizer!
+
     /// Double tap gesture
-    public internal(set) var doubleTapGestureRecognizer: UITapGestureRecognizer!
-    
+    public private(set) var doubleTapGestureRecognizer: UITapGestureRecognizer!
+
     /// Single tap gesture
-    public internal(set) var singleTapGestureRecognizer: UITapGestureRecognizer!
-    
-    fileprivate var _shouldHideStatusBar = false
-    fileprivate var _shouldUseStatusBarStyle = false
+    public private(set) var singleTapGestureRecognizer: UITapGestureRecognizer!
+
+    private var _shouldHideStatusBar = false
+    private var _shouldUseStatusBarStyle = false
     
     /// Transition animator
     /// Customizable if you wish to provide your own transitions.
-    open lazy var animator: DTPhotoViewerBaseAnimator = DTPhotoAnimator()
+    open var animator: DTPhotoViewerBaseAnimator = DTPhotoAnimator()
     
     public init(referencedView: UIView?, resource: Resource?) {
-        let flowLayout = DTCollectionViewFlowLayout()
-        flowLayout.scrollDirection = scrollDirection
-        flowLayout.sectionInset = UIEdgeInsets.zero
-        flowLayout.minimumLineSpacing = 0
-        flowLayout.minimumInteritemSpacing = 0
-        
-        // Collection view
-        collectionView = UICollectionView(frame: CGRect.zero, collectionViewLayout: flowLayout)
-        collectionView.register(DTPhotoCollectionViewCell.self, forCellWithReuseIdentifier: kPhotoCollectionViewCellIdentifier)
-        collectionView.backgroundColor = UIColor.clear
-        collectionView.isPagingEnabled = true
-        
-        backgroundView = UIView(frame: CGRect.zero)
-        
-        // Image view
-        imageView = DTImageView(frame: CGRect.zero)
-        
-        super.init(nibName: nil, bundle: nil)
-        
-        transitioningDelegate = self
-        
-        imageView.kf.setImage(with: resource)
         self.referencedView = referencedView
-        collectionView.dataSource = self
-        
-        modalPresentationStyle = UIModalPresentationStyle.overFullScreen
+
+        // Image view
+        imageView = DTImageView(frame: .zero)
+        imageView.kf.setImage(with: resource)
+        super.init(nibName: nil, bundle: nil)
+
+        modalPresentationStyle = .overFullScreen
         modalPresentationCapturesStatusBarAppearance = true
-        
-        if #available(iOS 11.0, *) {
-            collectionView.contentInsetAdjustmentBehavior = .never
-        } else {
-            automaticallyAdjustsScrollViewInsets = false
-        }
+        transitioningDelegate = self
     }
     
-    required public init?(coder aDecoder: NSCoder) {
+    public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    override open func viewDidLoad() {
-        if let view = referencedView {
-            // Content mode should be identical between image view and reference view
-            imageView.contentMode = view.contentMode
-        }
+    open override func viewDidLoad() {
+        super.viewDidLoad()
         
         //Background view
-        view.addSubview(backgroundView)
+        backgroundView = UIView(frame: view.bounds)
+        backgroundView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         backgroundView.alpha = 0
         backgroundView.backgroundColor = backgroundColor
-        
-        //Image view
+        view.addSubview(backgroundView)
+
+        // Image view
+        if let referencedView {
+            // Content mode should be identical between image view and reference view
+            imageView.contentMode = referencedView.contentMode
+        }
         // Configure this block for changing image size when image changed
         imageView.imageChangeBlock = { [weak self] image in
+            guard let self else { return }
             // Update image frame whenever image changes and when the imageView is not being visible
             // imageView is only being visible during presentation or dismissal
             // For that reason, we should not update frame of imageView no matter what.
-            if let self, let image, imageView.isHidden {
-                imageView.frame.size = imageViewSizeForImage(image)
+            if let image, imageView.isHidden {
+                imageView.frame.size = imageViewSize(for: image)
                 imageView.center = view.center
                 
                 // No datasource, only 1 item in collection view --> reloadData
-                guard let _ = dataSource else {
+                if dataSource == nil {
                     collectionView.reloadData()
-                    return
                 }
             }
         }
-        
         imageView.frame = frameForReferencedView()
         imageView.clipsToBounds = true
-        
-        //Scroll view
-        scrollView.delegate = self
         view.addSubview(imageView)
-        view.addSubview(scrollView)
-        
-        //Tap gesture recognizer
-        singleTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(_handleTapGesture))
-        singleTapGestureRecognizer.numberOfTapsRequired = 1
-        singleTapGestureRecognizer.numberOfTouchesRequired = 1
-        
-        //Pan gesture recognizer
-        panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(_handlePanGesture))
-        panGestureRecognizer.maximumNumberOfTouches = 1
-        view.isUserInteractionEnabled = true
-        
-        //Double tap gesture recognizer
+
+        // Collection view
+        collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: collectionViewLayout)
+        collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        collectionView.backgroundColor = .clear
+        collectionView.register(DTPhotoCollectionViewCell.self, forCellWithReuseIdentifier: kPhotoCollectionViewCellIdentifier)
+        collectionView.contentInsetAdjustmentBehavior = .never
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.showsVerticalScrollIndicator = false
+        collectionView.isPagingEnabled = true
+        collectionView.dataSource = self
+        collectionView.delegate = self
+        view.addSubview(collectionView)
+
+        // Double tap gesture recognizer
         doubleTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(_handleDoubleTapGesture))
         doubleTapGestureRecognizer.numberOfTapsRequired = 2
         doubleTapGestureRecognizer.numberOfTouchesRequired = 1
+        collectionView.addGestureRecognizer(doubleTapGestureRecognizer)
+
+        // Tap gesture recognizer
+        singleTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(_handleTapGesture))
+        singleTapGestureRecognizer.numberOfTapsRequired = 1
+        singleTapGestureRecognizer.numberOfTouchesRequired = 1
         singleTapGestureRecognizer.require(toFail: doubleTapGestureRecognizer)
-        
-        scrollView.addGestureRecognizer(doubleTapGestureRecognizer)
-        scrollView.addGestureRecognizer(singleTapGestureRecognizer)
+        collectionView.addGestureRecognizer(singleTapGestureRecognizer)
+
+        // Pan gesture recognizer
+        panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(_handlePanGesture))
+        panGestureRecognizer.maximumNumberOfTouches = 1
+        view.isUserInteractionEnabled = true
         view.addGestureRecognizer(panGestureRecognizer)
-        
-        super.viewDidLoad()
     }
     
     open override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        backgroundView.frame = view.bounds
-        scrollView.frame = view.bounds
         
-        // Update iamge view frame everytime view changes frame
+        // Update image view frame everytime view changes frame
         imageView.imageChangeBlock?(imageView.image)
     }
     
@@ -230,7 +222,7 @@ open class DTPhotoViewerController: UIViewController {
         super.viewWillTransition(to: size, with: coordinator)
         
         // Update layout
-        (collectionView.collectionViewLayout as? DTCollectionViewFlowLayout)?.currentIndex = currentPhotoIndex
+        collectionViewLayout.currentIndex = currentPhotoIndex
     }
     
     open override func viewWillAppear(_ animated: Bool) {
@@ -239,14 +231,9 @@ open class DTPhotoViewerController: UIViewController {
         if !animated {
             presentingAnimation()
             presentationAnimationDidFinish()
-        }
-        else {
+        } else {
             presentationAnimationWillStart()
         }
-    }
-    
-    open override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
     }
     
     open override func viewWillDisappear(_ animated: Bool) {
@@ -258,38 +245,37 @@ open class DTPhotoViewerController: UIViewController {
         if !animated {
             dismissingAnimation()
             dismissalAnimationDidFinish()
-        }
-        else {
+        } else {
             dismissalAnimationWillStart()
         }
     }
     
-    open override var prefersStatusBarHidden : Bool {
+    open override var prefersStatusBarHidden: Bool {
         if shouldHideStatusBarOnPresent {
             return _shouldHideStatusBar
         }
         return false
     }
     
-    open override var preferredStatusBarUpdateAnimation : UIStatusBarAnimation {
+    open override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation {
         return statusBarAnimationStyle
     }
     
-    open override var preferredStatusBarStyle : UIStatusBarStyle {
+    open override var preferredStatusBarStyle: UIStatusBarStyle {
         if _shouldUseStatusBarStyle {
             return statusBarStyleOnPresenting
         }
         return statusBarStyleOnDismissing
     }
     
-    //MARK: Private methods
-    fileprivate func startAnimation() {
-        //Hide reference image view
+    // MARK: Private methods
+    private func startAnimation() {
+        // Hide reference image view
         if automaticallyUpdateReferencedViewVisibility {
             referencedView?.isHidden = true
         }
         
-        //Animate to center
+        // Animate to center
         _animateToCenter()
     }
     
@@ -333,13 +319,13 @@ open class DTPhotoViewerController: UIViewController {
             // Double tap
             // imageViewerControllerDidDoubleTapImageView()
             
-            if (cell.scrollView.zoomScale == cell.scrollView.minimumZoomScale) {
+            if cell.scrollView.zoomScale == cell.scrollView.minimumZoomScale {
                 let location = gesture.location(in: view)
                 let center = cell.imageView.convert(location, from: view)
                 
                 // Zoom in
                 cell.minimumZoomScale = 1.0
-                let rect = zoomRect(for: cell.imageView, withScale: cell.scrollView.maximumZoomScale, withCenter: center)
+                let rect = zoomRect(for: cell.imageView, scale: cell.scrollView.maximumZoomScale, center: center)
                 cell.scrollView.zoom(to: rect, animated: true)
             } else {
                 // Zoom out
@@ -350,17 +336,15 @@ open class DTPhotoViewerController: UIViewController {
     }
     
     private func frameForReferencedView() -> CGRect {
-        if let referencedView = referencedView {
-            if let superview = referencedView.superview {
-                var frame = (superview.convert(referencedView.frame, to: view))
-                
-                if abs(frame.size.width - referencedView.frame.size.width) > 1 {
-                    // This is workaround for bug in ios 8, everything is double.
-                    frame = CGRect(x: frame.origin.x/2, y: frame.origin.y/2, width: frame.size.width/2, height: frame.size.height/2)
-                }
-                
-                return frame
+        if let referencedView,let superview = referencedView.superview {
+            var frame = superview.convert(referencedView.frame, to: view)
+
+            if abs(frame.size.width - referencedView.frame.size.width) > 1 {
+                // This is workaround for bug in ios 8, everything is double.
+                frame = CGRect(x: frame.origin.x/2, y: frame.origin.y/2, width: frame.size.width/2, height: frame.size.height/2)
             }
+
+            return frame
         }
         
         // Work around when there is no reference view, dragging might behave oddly
@@ -379,8 +363,7 @@ open class DTPhotoViewerController: UIViewController {
             } else {
                 return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
             }
-        }
-        else {
+        } else {
             if scrollView.frame.height == 0 {
                 return 0
             }
@@ -389,7 +372,7 @@ open class DTPhotoViewerController: UIViewController {
     }
     
     // Update zoom inside UICollectionViewCell
-    fileprivate func _updateZoomScaleForSize(cell: DTPhotoCollectionViewCell, size: CGSize) {
+    private func _updateZoomScaleForSize(cell: DTPhotoCollectionViewCell, size: CGSize) {
         let widthScale = size.width / cell.imageView.bounds.width
         let heightScale = size.height / cell.imageView.bounds.height
         let zoomScale = min(widthScale, heightScale)
@@ -397,9 +380,9 @@ open class DTPhotoViewerController: UIViewController {
         cell.maximumZoomScale = zoomScale
     }
     
-    fileprivate func zoomRect(for imageView: UIImageView, withScale scale: CGFloat, withCenter center: CGPoint) -> CGRect {
-        var zoomRect = CGRect.zero
-        
+    private func zoomRect(for imageView: UIImageView, scale: CGFloat, center: CGPoint) -> CGRect {
+        var zoomRect: CGRect = .zero
+
         // The zoom rect is in the content view's coordinates.
         // At a zoom scale of 1.0, it would be the size of the
         // imageScrollView's bounds.
@@ -440,7 +423,7 @@ open class DTPhotoViewerController: UIViewController {
                 imageView.center = CGPoint(x: view.center.x + translation.x, y: view.center.y + translation.y)
                 
                 //Change opacity of background view based on vertical distance from center
-                let yDistance = CGFloat(abs(imageView.center.y - view.center.y))
+                let yDistance = abs(imageView.center.y - view.center.y)
                 var alpha = 1.0 - yDistance/(gestureView.center.y)
                 
                 if alpha < 0 {
@@ -461,7 +444,7 @@ open class DTPhotoViewerController: UIViewController {
                     // Do not use transform to scale down image view
                     // Instead change width & height
                     if scale < 1 && scale >= 0 {
-                        let maxSize = imageViewSizeForImage(image)
+                        let maxSize = imageViewSize(for: image)
                         let scaleSize = CGSize(width: maxSize.width * scale, height: maxSize.height * scale)
                         
                         if scaleSize.width >= referenceSize.width || scaleSize.height >= referenceSize.height {
@@ -474,8 +457,7 @@ open class DTPhotoViewerController: UIViewController {
                 // Animate back to center
                 if backgroundView.alpha < 0.8 {
                     _dismiss()
-                }
-                else {
+                } else {
                     _animateToCenter()
                 }
                 
@@ -488,13 +470,13 @@ open class DTPhotoViewerController: UIViewController {
         }
     }
     
-    private func imageViewSizeForImage(_ image: UIImage?) -> CGSize {
-        if let image = image {
+    private func imageViewSize(for image: UIImage?) -> CGSize {
+        if let image {
             let rect = AVMakeRect(aspectRatio: image.size, insideRect: view.bounds)
             return rect.size
         }
         
-        return CGSize.zero
+        return .zero
     }
     
     func presentingAnimation() {
@@ -504,9 +486,9 @@ open class DTPhotoViewerController: UIViewController {
         }
         
         // Calculate final frame
-        var destinationFrame = CGRect.zero
-        destinationFrame.size = imageViewSizeForImage(imageView.image)
-        
+        var destinationFrame: CGRect = .zero
+        destinationFrame.size = imageViewSize(for: imageView.image)
+
         // Animate image view to the center
         imageView.frame = destinationFrame
         imageView.center = view.center
@@ -556,8 +538,7 @@ open class DTPhotoViewerController: UIViewController {
         }
     }
     
-    
-    //MARK: Public behavior methods
+    // MARK: Public behavior methods
     open func didScrollToPhoto(at index: Int) {
         
     }
@@ -595,8 +576,10 @@ open class DTPhotoViewerController: UIViewController {
     }
 }
 
-//MARK: - UIViewControllerTransitioningDelegate
+// MARK: - UIViewControllerTransitioningDelegate
+
 extension DTPhotoViewerController: UIViewControllerTransitioningDelegate {
+
     public func animationController(forPresented presented: UIViewController, presenting: UIViewController, source: UIViewController) -> UIViewControllerAnimatedTransitioning? {
         return animator
     }
@@ -606,9 +589,11 @@ extension DTPhotoViewerController: UIViewControllerTransitioningDelegate {
     }
 }
 
-//MARK: UICollectionViewDataSource
+// MARK: - UICollectionViewDataSource
+
 extension DTPhotoViewerController: UICollectionViewDataSource {
-    //MARK: Public methods
+
+    // MARK: Public methods
     public var currentPhotoIndex: Int {
         return currentPhotoIndex(for: scrollView)
     }
@@ -625,7 +610,7 @@ extension DTPhotoViewerController: UICollectionViewDataSource {
     }
     
     public func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        if let dataSource = dataSource {
+        if let dataSource {
             return dataSource.numberOfItems(in: self)
         }
         return 1
@@ -635,11 +620,11 @@ extension DTPhotoViewerController: UICollectionViewDataSource {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: kPhotoCollectionViewCellIdentifier, for: indexPath) as! DTPhotoCollectionViewCell
         cell.delegate = self
         
-        if let dataSource = dataSource {
+        if let dataSource {
             if dataSource.numberOfItems(in: self) > 0 {
-                dataSource.photoViewerController(self, configurePhotoAt: indexPath.row, withImageView: cell.imageView)
-                dataSource.photoViewerController?(self, configureCell: cell, forPhotoAt: indexPath.row)
-                
+                dataSource.photoViewerController(self, configurePhotoAt: indexPath.item, withImageView: cell.imageView)
+                dataSource.photoViewerController?(self, configureCell: cell, forPhotoAt: indexPath.item)
+
                 return cell
             }
         }
@@ -649,8 +634,10 @@ extension DTPhotoViewerController: UICollectionViewDataSource {
     }
 }
 
-//MARK: Open methods
+// MARK: - Open methods
+
 extension DTPhotoViewerController {
+
     // For each reuse identifier that the collection view will use, register either a class or a nib from which to instantiate a cell.
     // If a nib is registered, it must contain exactly 1 top level object which is a DTPhotoCollectionViewCell.
     // If a class is registered, it will be instantiated via alloc/initWithFrame:
@@ -697,68 +684,146 @@ extension DTPhotoViewerController {
     }
     
     public func scrollToPhoto(at index: Int, animated: Bool) {
-        if collectionView.numberOfItems(inSection: 0) > index {
-            let indexPath = IndexPath(item: index, section: 0)
-            
-            let position: UICollectionView.ScrollPosition
-            
-            if scrollDirection == .vertical {
-                position = .bottom
-            }
-            else {
-                position = .right
-            }
-            
-            collectionView.scrollToItem(at: indexPath, at: position, animated: animated)
-            
-            if !animated {
-                // Need to call these methods since scrollView delegate method won't be called when not animated
-                // Method to override
-                didScrollToPhoto(at: index)
-                
-                // Call delegate
-                delegate?.photoViewerController?(self, didScrollToPhotoAt: index)
-            }
+        guard collectionView.numberOfItems(inSection: 0) > index else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+
+        let position: UICollectionView.ScrollPosition
+
+        if scrollDirection == .vertical {
+            position = .bottom
+        } else {
+            position = .right
+        }
+
+        collectionView.scrollToItem(at: indexPath, at: position, animated: animated)
+
+        if !animated {
+            // Need to call these methods since scrollView delegate method won't be called when not animated
+            // Method to override
+            didScrollToPhoto(at: index)
+
+            // Call delegate
+            delegate?.photoViewerController?(self, didScrollToPhotoAt: index)
         }
     }
     
     // Helper for indexpaths
     func indexPathsForIndexes(indexes: [Int]) -> [IndexPath] {
-        return indexes.map() {
-            IndexPath(item: $0, section: 0)
-        }
+        return indexes.map { IndexPath(item: $0, section: 0) }
     }
 }
 
-//MARK: DTPhotoCollectionViewCellDelegate
+// MARK: - DTPhotoCollectionViewCellDelegate
+
 extension DTPhotoViewerController: DTPhotoCollectionViewCellDelegate {
+
     public func collectionViewCellDidZoomOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
-        if let indexPath = collectionView.indexPath(for: cell) {
-            // Method to override
-            didZoomOnPhoto(at: indexPath.row, atScale: scale)
-            
-            // Call delegate
-            delegate?.photoViewerController?(self, didZoomOnPhotoAtIndex: indexPath.row, atScale: scale)
-        }
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        // Method to override
+        didZoomOnPhoto(at: indexPath.item, atScale: scale)
+
+        // Call delegate
+        delegate?.photoViewerController?(self, didZoomOnPhotoAtIndex: indexPath.item, atScale: scale)
     }
     
     public func collectionViewCellDidEndZoomingOnPhoto(_ cell: DTPhotoCollectionViewCell, atScale scale: CGFloat) {
-        if let indexPath = collectionView.indexPath(for: cell) {
-            // Method to override
-            didEndZoomingOnPhoto(at: indexPath.row, atScale: scale)
-            
-            // Call delegate
-            delegate?.photoViewerController?(self, didEndZoomingOnPhotoAtIndex: indexPath.row, atScale: scale)
-        }
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        // Method to override
+        didEndZoomingOnPhoto(at: indexPath.item, atScale: scale)
+
+        // Call delegate
+        delegate?.photoViewerController?(self, didEndZoomingOnPhotoAtIndex: indexPath.item, atScale: scale)
     }
     
     public func collectionViewCellWillZoomOnPhoto(_ cell: DTPhotoCollectionViewCell) {
-        if let indexPath = collectionView.indexPath(for: cell) {
-            // Method to override
-            willZoomOnPhoto(at: indexPath.row)
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        // Method to override
+        willZoomOnPhoto(at: indexPath.item)
+
+        // Call delegate
+        delegate?.photoViewerController?(self, willZoomOnPhotoAtIndex: indexPath.item)
+    }
+}
+
+// MARK: - UICollectionViewDelegateFlowLayout
+
+extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
+
+    open func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        delegate?.photoViewerController?(self, scrollViewDidScroll: scrollView)
+    }
+    
+    open func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        let index = currentPhotoIndex
+        
+        // Method to override
+        didScrollToPhoto(at: index)
+        
+        // Call delegate
+        delegate?.photoViewerController?(self, didScrollToPhotoAt: index)
+    }
+    
+    open func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return collectionView.frame.size
+    }
+    
+    open func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return imageView
+    }
+    
+    open func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        updateFrame(for: view.frame.size)
+
+        // Disable pan gesture if zoom scale is not 1
+        if scrollView.zoomScale != 1 {
+            panGestureRecognizer.isEnabled = false
+        } else {
+            panGestureRecognizer.isEnabled = true
+        }
+    }
+    
+    open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate {
+            let index = currentPhotoIndex
+            didScrollToPhoto(at: index)
             
             // Call delegate
-            delegate?.photoViewerController?(self, willZoomOnPhotoAtIndex: indexPath.row)
+            delegate?.photoViewerController?(self, didScrollToPhotoAt: index)
+        }
+    }
+    
+    open func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        let index = currentPhotoIndex
+        didScrollToPhoto(at: index)
+        
+        // Call delegate
+        delegate?.photoViewerController?(self, didScrollToPhotoAt: index)
+    }
+    
+    // MARK: Helpers
+    
+    private func updateFrame(for size: CGSize) {
+
+        let y = max(0, (size.height - imageView.frame.height) / 2)
+        let x = max(0, (size.width - imageView.frame.width) / 2)
+        
+        imageView.frame.origin = CGPoint(x: x, y: y)
+    }
+    
+    // Update image view image
+    func updateImageView(scrollView: UIScrollView) {
+        let index = currentPhotoIndex
+        
+        if let dataSource {
+            // Update image view before pan gesture happens
+            if dataSource.numberOfItems(in: self) > 0 {
+                dataSource.photoViewerController(self, configurePhotoAt: index, withImageView: imageView)
+            }
+
+            // Change referenced image view
+            if let view = dataSource.photoViewerController?(self, referencedViewForPhotoAt: index) {
+                referencedView = view
+            }
         }
     }
 }

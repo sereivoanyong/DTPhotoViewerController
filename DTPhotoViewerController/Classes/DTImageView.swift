@@ -9,6 +9,7 @@
 import UIKit
 
 open class DTImageView: UIImageView {
+
     open override var image: UIImage? {
         didSet {
             imageChangeBlock?(image)

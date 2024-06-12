@@ -8,28 +8,22 @@
 
 import UIKit
 
-public class DTScrollView: UIScrollView {
-    
-    /*
-     // Only override draw() if you perform custom drawing.
-     // An empty implementation adversely affects performance during animation.
-     override func draw(_ rect: CGRect) {
-     // Drawing code
-     }
-     */
+final public class DTScrollView: UIScrollView {
     
     override init(frame: CGRect) {
         super.init(frame: frame)
         panGestureRecognizer.delegate = self
     }
     
-    required public init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
     }
 }
 
-//MARK: UIGestureRecognizerDelegate
+// MARK: - UIGestureRecognizerDelegate
+
 extension DTScrollView: UIGestureRecognizerDelegate {
+
     public override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if gestureRecognizer == panGestureRecognizer {
             if gestureRecognizer.numberOfTouches == 1 && zoomScale == 1.0 {

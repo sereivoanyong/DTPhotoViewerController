@@ -8,7 +8,8 @@
 
 import UIKit
 
-class DTCollectionViewFlowLayout: UICollectionViewFlowLayout {
+final class DTCollectionViewFlowLayout: UICollectionViewFlowLayout {
+  
     var currentIndex: Int?
     
     override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {

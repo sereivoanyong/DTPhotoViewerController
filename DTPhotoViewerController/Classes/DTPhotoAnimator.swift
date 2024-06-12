@@ -15,6 +15,7 @@ private let kDampingRatio: CGFloat = 0.7
 /// that conforms this protocol and assign
 ///
 public protocol DTPhotoViewerBaseAnimator: UIViewControllerAnimatedTransitioning {
+
     var presentingDuration: TimeInterval { get set }
     var dismissingDuration: TimeInterval { get set }
     var usesSpringAnimation: Bool { get set }
@@ -80,8 +81,7 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
             
             if usesSpringAnimation {
                 animator = UIViewPropertyAnimator(duration: duration, dampingRatio: kDampingRatio, animations: animation)
-            }
-            else {
+            } else {
                 animator = UIViewPropertyAnimator(duration: duration, curve: .linear, animations: animation)
             }
             
@@ -120,8 +120,7 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
                 animationGroup.animations = [borderColorAnimation, borderWidthAnimation]
                 photoViewerController.imageView.layer.add(animationGroup, forKey: nil)
             }
-        }
-        else {
+        } else {
             guard let photoViewerController = fromViewController as? DTPhotoViewerController else {
                 fatalError("view controller does not conform DTPhotoViewer")
             }
@@ -139,8 +138,7 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
             
             if usesSpringAnimation {
                 animator = UIViewPropertyAnimator(duration: duration, dampingRatio: kDampingRatio, animations: animation)
-            }
-            else {
+            } else {
                 animator = UIViewPropertyAnimator(duration: duration, curve: .linear, animations: animation)
             }
             
@@ -190,6 +188,7 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
 }
 
 extension UIViewControllerContextTransitioning {
+
     var isPresenting: Bool {
         let toViewController = viewController(forKey: .to)
         let fromViewController = viewController(forKey: .from)
