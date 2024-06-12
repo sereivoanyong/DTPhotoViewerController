@@ -18,7 +18,9 @@ public protocol DTPhotoCollectionViewCellDelegate: NSObjectProtocol {
 open class DTPhotoCollectionViewCell: UICollectionViewCell {
 
     public let scrollView: DTScrollView = DTScrollView(frame: .zero)
-    public let imageView: DTImageView = DTImageView(frame: .zero)
+    public let imageView: UIImageView = UIImageView(frame: .zero)
+
+    private var imageObservation: NSKeyValueObservation?
 
     // default is 1.0
     open var minimumZoomScale: CGFloat = 1.0 {
@@ -29,7 +31,6 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
                 scrollView.minimumZoomScale = newValue
             }
         }
-        
         didSet {
             correctCurrentZoomScaleIfNeeded()
         }
@@ -81,10 +82,10 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
         contentView.addSubview(scrollView)
 
         // Layout subviews every time getting new image
-        imageView.imageChangeBlock = { [weak self] image in
+        imageObservation = imageView.observe(\.image, options: [.new]) { [weak self] imageView, _ in
             guard let self else { return }
             // Update image frame whenever image changes
-            if image == nil {
+            if imageView.image == nil {
                 scrollView.minimumZoomScale = 1.0
                 scrollView.maximumZoomScale = 1.0
             } else {
@@ -111,7 +112,7 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
     open override func layoutSubviews() {
         super.layoutSubviews()
         
-        //Set the aspect ration of the image
+        // Set the aspect ration of the image
         if let image = imageView.image {
             let size = image.size
             let horizontalScale = size.width / scrollView.frame.width

@@ -75,8 +75,8 @@ open class DTPhotoViewerController: UIViewController {
     
     /// This is the image view that is mainly used for the presentation and dismissal effect.
     /// How it animates from the original view to fullscreen and vice versa.
-    public private(set) var imageView: DTImageView
-    
+    public private(set) var imageView: UIImageView
+
     /// The view where photo viewer originally animates from.
     /// Provide this correctly so that you can have a nice effect.
     public weak private(set) var referencedView: UIView? {
@@ -121,7 +121,8 @@ open class DTPhotoViewerController: UIViewController {
 
     private var _shouldHideStatusBar = false
     private var _shouldUseStatusBarStyle = false
-    
+    private var imageObservation: NSKeyValueObservation?
+
     /// Transition animator
     /// Customizable if you wish to provide your own transitions.
     open var animator: DTPhotoViewerBaseAnimator = DTPhotoAnimator()
@@ -130,7 +131,7 @@ open class DTPhotoViewerController: UIViewController {
         self.referencedView = referencedView
 
         // Image view
-        imageView = DTImageView(frame: .zero)
+        imageView = UIImageView(frame: .zero)
         imageView.kf.setImage(with: resource)
         super.init(nibName: nil, bundle: nil)
 
@@ -159,20 +160,9 @@ open class DTPhotoViewerController: UIViewController {
             imageView.contentMode = referencedView.contentMode
         }
         // Configure this block for changing image size when image changed
-        imageView.imageChangeBlock = { [weak self] image in
+        imageObservation = imageView.observe(\.image, options: [.new]) { [weak self] imageView, _ in
             guard let self else { return }
-            // Update image frame whenever image changes and when the imageView is not being visible
-            // imageView is only being visible during presentation or dismissal
-            // For that reason, we should not update frame of imageView no matter what.
-            if let image, imageView.isHidden {
-                imageView.frame.size = imageViewSize(for: image)
-                imageView.center = view.center
-                
-                // No datasource, only 1 item in collection view --> reloadData
-                if dataSource == nil {
-                    collectionView.reloadData()
-                }
-            }
+            layoutImageView()
         }
         imageView.frame = frameForReferencedView()
         imageView.clipsToBounds = true
@@ -215,9 +205,23 @@ open class DTPhotoViewerController: UIViewController {
         super.viewWillLayoutSubviews()
         
         // Update image view frame everytime view changes frame
-        imageView.imageChangeBlock?(imageView.image)
+        layoutImageView()
     }
-    
+
+    private func layoutImageView() {
+        // Update image frame whenever image changes and when the imageView is not being visible
+        // imageView is only being visible during presentation or dismissal
+        // For that reason, we should not update frame of imageView no matter what.
+        guard let image = imageView.image, imageView.isHidden else { return }
+        imageView.frame.size = imageViewSize(for: image)
+        imageView.center = view.center
+
+        // No datasource, only 1 item in collection view --> reloadData
+        if dataSource == nil {
+            collectionView.reloadData()
+        }
+    }
+
     open override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         
