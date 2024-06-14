@@ -118,7 +118,7 @@ class SimplePhotoViewerController: DTPhotoViewerController {
         let saveButton = UIAlertAction(title: "Save", style: UIAlertAction.Style.default) { _ in
             // Save photo to Camera roll
             if let delegate = self.delegate as? SimplePhotoViewerControllerDelegate {
-                delegate.simplePhotoViewerController(self, savePhotoAt: self.currentPhotoIndex)
+                delegate.simplePhotoViewerController(self, savePhotoAt: self.currentMediaIndex)
             }
         }
         alertController.addAction(saveButton)

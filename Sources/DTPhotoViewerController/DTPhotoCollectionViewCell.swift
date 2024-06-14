@@ -1,12 +1,12 @@
 //
 //  DTPhotoCollectionViewCell.swift
-//  Pods
+//  DTPhotoViewerController
 //
-//  Created by Admin on 17/01/2017.
-//
+//  Created by Vo Duc Tung on 1/17/17.
 //
 
 import UIKit
+import Combine
 
 public protocol DTPhotoCollectionViewCellDelegate: NSObjectProtocol {
 
@@ -18,14 +18,14 @@ public protocol DTPhotoCollectionViewCellDelegate: NSObjectProtocol {
 open class DTPhotoCollectionViewCell: UICollectionViewCell {
 
     public let scrollView: DTScrollView = DTScrollView(frame: .zero)
-    public let imageView: UIImageView = UIImageView(frame: .zero)
+    public let mediaView: MediaView = MediaView(frame: .zero)
 
-    private var imageObservation: NSKeyValueObservation?
+    private var imageObservation: AnyCancellable?
 
     // default is 1.0
     open var minimumZoomScale: CGFloat = 1.0 {
         willSet {
-            if imageView.image == nil {
+            if mediaView.mediaSize == nil {
                 scrollView.minimumZoomScale = 1.0
             } else {
                 scrollView.minimumZoomScale = newValue
@@ -39,7 +39,7 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
     // default is 3.0.
     open var maximumZoomScale: CGFloat = 3.0 {
         willSet {
-            if imageView.image == nil {
+            if mediaView.media == nil {
                 scrollView.maximumZoomScale = 1.0
             } else {
                 scrollView.maximumZoomScale = newValue
@@ -82,10 +82,10 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
         contentView.addSubview(scrollView)
 
         // Layout subviews every time getting new image
-        imageObservation = imageView.observe(\.image, options: [.new]) { [weak self] imageView, _ in
+        imageObservation = mediaView.mediaSizeSubject.sink { [weak self] _ in
             guard let self else { return }
             // Update image frame whenever image changes
-            if imageView.image == nil {
+            if mediaView.mediaSize == nil {
                 scrollView.minimumZoomScale = 1.0
                 scrollView.maximumZoomScale = 1.0
             } else {
@@ -95,8 +95,8 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
             }
             correctCurrentZoomScaleIfNeeded()
         }
-        imageView.contentMode = .scaleAspectFit
-        scrollView.addSubview(imageView)
+        mediaView.contentMode = .scaleAspectFit
+        scrollView.addSubview(mediaView)
     }
     
     private func correctCurrentZoomScaleIfNeeded() {
@@ -113,15 +113,14 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
         super.layoutSubviews()
         
         // Set the aspect ration of the image
-        if let image = imageView.image {
-            let size = image.size
-            let horizontalScale = size.width / scrollView.frame.width
-            let verticalScale = size.height / scrollView.frame.height
+        if let mediaSize = mediaView.mediaSize {
+            let horizontalScale = mediaSize.width / scrollView.frame.width
+            let verticalScale = mediaSize.height / scrollView.frame.height
             let factor = max(horizontalScale, verticalScale)
             
             //Divide the size by the greater of the vertical or horizontal shrinkage factor
-            let width = size.width / factor
-            let height = size.height / factor
+            let width = mediaSize.width / factor
+            let height = mediaSize.height / factor
             
             if scrollView.zoomScale != 1 {
                 // If current zoom scale is not at default value, we need to maintain
@@ -129,7 +128,7 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
                 
                 // Calculate new zoom scale corresponding to current default size to maintain
                 // imageView's size
-                let newZoomScale = scrollView.zoomScale * imageView.bounds.width / width
+                let newZoomScale = scrollView.zoomScale * mediaView.bounds.width / width
                 
                 // Update scrollView's maximumZoomScale or minimumZoomScale if needed
                 // in order to ensure that updating its zoomScale works.
@@ -150,16 +149,16 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
                 
                 // After updating scrollView's zoomScale, imageView's size will be updated
                 // We need to revert it back to its original size.
-                let imageViewSize = imageView.frame.size
+                let imageViewSize = mediaView.frame.size
                 scrollView.zoomScale = newZoomScale
-                imageView.frame.size = imageViewSize // CGSize(width: width * newZoomScale, height: height * newZoomScale)
+                mediaView.frame.size = imageViewSize // CGSize(width: width * newZoomScale, height: height * newZoomScale)
                 scrollView.contentSize = imageViewSize
             } else {
                 // If current zoom scale is at default value, just update imageView's size
                 let x = (scrollView.frame.width - width) / 2
                 let y = (scrollView.frame.height - height) / 2
                 
-                imageView.frame = CGRect(x: x, y: y, width: width, height: height)
+                mediaView.frame = CGRect(x: x, y: y, width: width, height: height)
             }
         }
     }
@@ -170,7 +169,7 @@ open class DTPhotoCollectionViewCell: UICollectionViewCell {
 extension DTPhotoCollectionViewCell: UIScrollViewDelegate {
 
     public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return imageView
+        return mediaView
     }
     
     public func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
@@ -193,9 +192,9 @@ extension DTPhotoCollectionViewCell: UIScrollViewDelegate {
     
     private func updateImageViewFrameForSize(_ size: CGSize) {
         
-        let y = max(0, (size.height - imageView.frame.height) / 2)
-        let x = max(0, (size.width - imageView.frame.width) / 2)
+        let y = max(0, (size.height - mediaView.frame.height) / 2)
+        let x = max(0, (size.width - mediaView.frame.width) / 2)
         
-        imageView.frame.origin = CGPoint(x: x, y: y)
+        mediaView.frame.origin = CGPoint(x: x, y: y)
     }
 }

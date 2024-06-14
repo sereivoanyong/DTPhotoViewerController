@@ -2,8 +2,7 @@
 //  DTPhotoAnimator.swift
 //  DTPhotoViewerController
 //
-//  Created by Vo Duc Tung on 04/05/16.
-//  Copyright © 2016 Vo Duc Tung. All rights reserved.
+//  Created by Vo Duc Tung on 5/4/16.
 //
 
 import UIKit
@@ -68,15 +67,15 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
             containerView.addSubview(toView)
             
             if let referencedView = photoViewerController.referencedView {
-                photoViewerController.imageView.layer.cornerRadius = referencedView.layer.cornerRadius
-                photoViewerController.imageView.layer.masksToBounds = referencedView.layer.masksToBounds
-                photoViewerController.imageView.backgroundColor = referencedView.backgroundColor
+                photoViewerController.mediaView.layer.cornerRadius = referencedView.layer.cornerRadius
+                photoViewerController.mediaView.layer.masksToBounds = referencedView.layer.masksToBounds
+                photoViewerController.mediaView.backgroundColor = referencedView.backgroundColor
             }
             
             let animation = {
                 photoViewerController.presentingAnimation()
-                photoViewerController.imageView.layer.cornerRadius = 0
-                photoViewerController.imageView.backgroundColor = .clear
+                photoViewerController.mediaView.layer.cornerRadius = 0
+                photoViewerController.mediaView.backgroundColor = .clear
             }
             
             if usesSpringAnimation {
@@ -109,30 +108,30 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
                 let borderColorAnimation = CABasicAnimation(keyPath: "borderColor")
                 borderColorAnimation.fromValue = referencedView.layer.borderColor
                 borderColorAnimation.toValue = UIColor.clear.cgColor
-                photoViewerController.imageView.layer.borderColor = UIColor.clear.cgColor
-                
+                photoViewerController.mediaView.layer.borderColor = UIColor.clear.cgColor
+
                 // Border width
                 let borderWidthAnimation = CABasicAnimation(keyPath: "borderWidth")
                 borderWidthAnimation.fromValue = referencedView.layer.borderWidth
                 borderWidthAnimation.toValue = 0
-                photoViewerController.imageView.layer.borderWidth = referencedView.layer.borderWidth
-                
+                photoViewerController.mediaView.layer.borderWidth = referencedView.layer.borderWidth
+
                 animationGroup.animations = [borderColorAnimation, borderWidthAnimation]
-                photoViewerController.imageView.layer.add(animationGroup, forKey: nil)
+                photoViewerController.mediaView.layer.add(animationGroup, forKey: nil)
             }
         } else {
             guard let photoViewerController = fromViewController as? DTPhotoViewerController else {
                 fatalError("view controller does not conform DTPhotoViewer")
             }
             
-            photoViewerController.imageView.backgroundColor = .clear
-            
+            photoViewerController.mediaView.backgroundColor = .clear
+
             let animation = {
                 photoViewerController.dismissingAnimation()
                 
                 if let referencedView = photoViewerController.referencedView {
-                    photoViewerController.imageView.layer.cornerRadius = referencedView.layer.cornerRadius
-                    photoViewerController.imageView.backgroundColor = referencedView.backgroundColor
+                    photoViewerController.mediaView.layer.cornerRadius = referencedView.layer.cornerRadius
+                    photoViewerController.mediaView.backgroundColor = referencedView.backgroundColor
                 }
             }
             
@@ -166,16 +165,16 @@ open class DTPhotoAnimator: NSObject, DTPhotoViewerBaseAnimator {
                 let borderColorAnimation = CABasicAnimation(keyPath: "borderColor")
                 borderColorAnimation.fromValue = UIColor.clear.cgColor
                 borderColorAnimation.toValue = referencedView.layer.borderColor
-                photoViewerController.imageView.layer.borderColor = referencedView.layer.borderColor
-                
+                photoViewerController.mediaView.layer.borderColor = referencedView.layer.borderColor
+
                 // Border width
                 let borderWidthAnimation = CABasicAnimation(keyPath: "borderWidth")
                 borderWidthAnimation.fromValue = 0
                 borderWidthAnimation.toValue = referencedView.layer.borderWidth
-                photoViewerController.imageView.layer.borderWidth = referencedView.layer.borderWidth
-                
+                photoViewerController.mediaView.layer.borderWidth = referencedView.layer.borderWidth
+
                 animationGroup.animations = [borderColorAnimation, borderWidthAnimation]
-                photoViewerController.imageView.layer.add(animationGroup, forKey: nil)
+                photoViewerController.mediaView.layer.add(animationGroup, forKey: nil)
             }
         }
         

@@ -1,9 +1,8 @@
 //
 //  DTCollectionViewFlowLayout.swift
-//  Pods
+//  DTPhotoViewerController
 //
-//  Created by Admin on 17/01/2017.
-//
+//  Created by Vo Duc Tung on 1/17/17.
 //
 
 import UIKit

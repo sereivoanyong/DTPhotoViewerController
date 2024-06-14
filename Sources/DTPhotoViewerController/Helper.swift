@@ -1,9 +1,8 @@
 //
 //  Helper.swift
-//  Pods
+//  DTPhotoViewerController
 //
-//  Created by Admin on 16/03/2017.
-//
+//  Created by Vo Duc Tung on 3/16/17.
 //
 
 import QuartzCore

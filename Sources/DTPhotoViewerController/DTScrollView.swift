@@ -1,9 +1,8 @@
 //
 //  DTScrollView.swift
-//  Pods
+//  DTPhotoViewerController
 //
-//  Created by Admin on 18/01/2017.
-//
+//  Created by Vo Duc Tung on 1/18/17.
 //
 
 import UIKit

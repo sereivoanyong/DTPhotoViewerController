@@ -17,7 +17,7 @@ private let kColumnSpacing: CGFloat = 5
 /// Class CollectionViewCell
 /// Add extra UI element to photo.
 public class CollectionViewCell: UICollectionViewCell {
-    public private(set) var imageView: UIImageView!
+    public private(set) var mediaView: MediaView!
 
     weak var delegate: DTPhotoCollectionViewCellDelegate?
 
@@ -26,18 +26,19 @@ public class CollectionViewCell: UICollectionViewCell {
         commonInit()
     }
 
-    public required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
         commonInit()
     }
 
     private func commonInit() {
-        imageView = UIImageView(frame: CGRect.zero)
-        imageView.contentMode = .scaleAspectFit
-        imageView.layer.cornerRadius = 10
-        imageView.layer.masksToBounds = true
-        imageView.backgroundColor = UIColor.white
-        contentView.addSubview(imageView)
+        mediaView = MediaView(frame: .zero)
+        mediaView.configuresVideoPlayer = false
+        mediaView.contentMode = .scaleAspectFit
+        mediaView.layer.cornerRadius = 10
+        mediaView.layer.masksToBounds = true
+        mediaView.backgroundColor = UIColor.white
+        contentView.addSubview(mediaView)
         contentView.backgroundColor = .clear
         backgroundColor = .clear
     }
@@ -45,7 +46,7 @@ public class CollectionViewCell: UICollectionViewCell {
     override public func layoutSubviews() {
         super.layoutSubviews()
         let margin = CGFloat(5)
-        imageView.frame = CGRect(x: margin, y: margin, width: bounds.size.width - 2 * margin, height: bounds.size.height - 2 * margin)
+        mediaView.frame = CGRect(x: margin, y: margin, width: bounds.size.width - 2 * margin, height: bounds.size.height - 2 * margin)
     }
 }
 
@@ -54,7 +55,10 @@ public class CollectionViewCell: UICollectionViewCell {
 class ViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
     fileprivate var selectedImageIndex: Int = 0
 
-    var images = [UIImage]()
+    var media: [Media] = [
+      .video(url: URL(string: "https://files.testfile.org/Video%20MP4%2FSand%20-%20testfile.org.mp4")!),
+      .image(url: URL(string: "https://images.macrumors.com/t/_XfmeApFjtR9z9hzFYq33FFDQUY=/1600x0/article-new/2024/01/SharePlay-Music-Control-Expanding-Feature-2.jpg")!),
+    ]
 
     init() {
         let flowLayout = UICollectionViewFlowLayout()
@@ -65,10 +69,10 @@ class ViewController: UICollectionViewController, UICollectionViewDelegateFlowLa
 
         super.init(collectionViewLayout: flowLayout)
 
-        for index in 0...9 {
-            //swiftlint:disable force_unwrapping
-            images.append(UIImage(named: "mario\(index % 5 + 1)")!)
-        }
+//        for index in 0...9 {
+//            //swiftlint:disable force_unwrapping
+//            media.append(.image(url: Bundle.main.url(forResource: "mario\(index % 5 + 1)", withExtension: "png")!))
+//        }
 
         collectionView?.register(CollectionViewCell.self, forCellWithReuseIdentifier: kCollectionViewCellIdentifier)
 
@@ -97,12 +101,12 @@ class ViewController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
 
     override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return images.count
+        return media.count
     }
 
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: kCollectionViewCellIdentifier, for: indexPath) as! CollectionViewCell
-        cell.imageView.image = images[indexPath.row]
+        cell.mediaView.media = media[indexPath.item]
         return cell
     }
 
@@ -117,7 +121,7 @@ class ViewController: UICollectionViewController, UICollectionViewDelegateFlowLa
         selectedImageIndex = indexPath.row
 
         if let cell = collectionView.cellForItem(at: indexPath) as? CollectionViewCell {
-            let viewController = SimplePhotoViewerController(referencedView: cell.imageView, image: cell.imageView.image)
+            let viewController = SimplePhotoViewerController(referencedView: cell.mediaView, media: media[indexPath.item])
             viewController.dataSource = self
             viewController.delegate = self
             present(viewController, animated: true, completion: nil)
@@ -127,28 +131,30 @@ class ViewController: UICollectionViewController, UICollectionViewDelegateFlowLa
 
 // MARK: DTPhotoViewerControllerDataSource
 extension ViewController: DTPhotoViewerControllerDataSource {
-    func photoViewerController(_ photoViewerController: DTPhotoViewerController, configureCell cell: DTPhotoCollectionViewCell, forPhotoAt index: Int) {
+
+    func numberOfMedia(in mediaViewerController: DTPhotoViewerController) -> Int {
+        return media.count
+    }
+
+    func mediaViewerController(_ mediaViewerController: DTPhotoViewerController, mediaAt index: Int) -> Media {
+        return media[index]
+    }
+
+    func mediaViewerController(_ mediaViewerController: DTPhotoViewerController, configure cell: DTPhotoCollectionViewCell, with media: Media, at index: Int) {
+        cell.mediaView.media = media
         // Set text for each item
         if let cell = cell as? CustomPhotoCollectionViewCell {
-            cell.extraLabel.text = "Image no \(index + 1)"
+          cell.extraLabel.text = "Image no \(index + 1)"
         }
     }
 
-    func photoViewerController(_ photoViewerController: DTPhotoViewerController, referencedViewForPhotoAt index: Int) -> UIView? {
+    func mediaViewerController(_ mediaViewerController: DTPhotoViewerController, referencedViewForMediaAt index: Int) -> UIView? {
         let indexPath = IndexPath(item: index, section: 0)
         if let cell = collectionView?.cellForItem(at: indexPath) as? CollectionViewCell {
-            return cell.imageView
+            return cell.mediaView
         }
 
         return nil
-    }
-
-    func numberOfItems(in photoViewerController: DTPhotoViewerController) -> Int {
-        return images.count
-    }
-
-    func photoViewerController(_ photoViewerController: DTPhotoViewerController, configurePhotoAt index: Int, withImageView imageView: UIImageView) {
-        imageView.image = images[index]
     }
 }
 
@@ -160,18 +166,18 @@ extension ViewController: SimplePhotoViewerControllerDelegate {
 
     func photoViewerController(_ photoViewerController: DTPhotoViewerController, didScrollToPhotoAt index: Int) {
         selectedImageIndex = index
-        if let collectionView = collectionView {
+        if let collectionView {
             let indexPath = IndexPath(item: selectedImageIndex, section: 0)
 
             // If cell for selected index path is not visible
             if !collectionView.indexPathsForVisibleItems.contains(indexPath) {
                 // Scroll to make cell visible
-                collectionView.scrollToItem(at: indexPath, at: UICollectionView.ScrollPosition.bottom, animated: false)
+                collectionView.scrollToItem(at: indexPath, at: .bottom, animated: false)
             }
         }
     }
 
     func simplePhotoViewerController(_ viewController: SimplePhotoViewerController, savePhotoAt index: Int) {
-        UIImageWriteToSavedPhotosAlbum(images[index], nil, nil, nil)
+//        UIImageWriteToSavedPhotosAlbum(images[index], nil, nil, nil)
     }
 }

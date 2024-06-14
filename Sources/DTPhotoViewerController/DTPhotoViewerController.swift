@@ -2,14 +2,14 @@
 //  DTPhotoViewerController.swift
 //  DTPhotoViewerController
 //
-//  Created by Vo Duc Tung on 29/04/16.
-//  Copyright © 2016 Vo Duc Tung. All rights reserved.
+//  Created by Vo Duc Tung on 4/29/16.
 //
 
 import UIKit
 import AVKit
 import Photos
 import Kingfisher
+import Combine
 
 private let kPhotoCollectionViewCellIdentifier = "Cell"
 
@@ -75,7 +75,7 @@ open class DTPhotoViewerController: UIViewController {
     
     /// This is the image view that is mainly used for the presentation and dismissal effect.
     /// How it animates from the original view to fullscreen and vice versa.
-    public private(set) var imageView: UIImageView
+    public private(set) var mediaView: MediaView
 
     /// The view where photo viewer originally animates from.
     /// Provide this correctly so that you can have a nice effect.
@@ -121,18 +121,19 @@ open class DTPhotoViewerController: UIViewController {
 
     private var _shouldHideStatusBar = false
     private var _shouldUseStatusBarStyle = false
-    private var imageObservation: NSKeyValueObservation?
+    private var imageObservation: AnyCancellable?
 
     /// Transition animator
     /// Customizable if you wish to provide your own transitions.
     open var animator: DTPhotoViewerBaseAnimator = DTPhotoAnimator()
     
-    public init(referencedView: UIView?, resource: Resource?) {
+    public init(referencedView: UIView?, media: Media?) {
         self.referencedView = referencedView
 
         // Image view
-        imageView = UIImageView(frame: .zero)
-        imageView.kf.setImage(with: resource)
+        mediaView = MediaView(frame: .zero)
+        mediaView.configuresVideoPlayer = false
+        mediaView.media = media
         super.init(nibName: nil, bundle: nil)
 
         modalPresentationStyle = .overFullScreen
@@ -157,16 +158,16 @@ open class DTPhotoViewerController: UIViewController {
         // Image view
         if let referencedView {
             // Content mode should be identical between image view and reference view
-            imageView.contentMode = referencedView.contentMode
+            mediaView.contentMode = referencedView.contentMode
         }
         // Configure this block for changing image size when image changed
-        imageObservation = imageView.observe(\.image, options: [.new]) { [weak self] imageView, _ in
+        imageObservation = mediaView.mediaSizeSubject.sink { [weak self] _ in
             guard let self else { return }
             layoutImageView()
         }
-        imageView.frame = frameForReferencedView()
-        imageView.clipsToBounds = true
-        view.addSubview(imageView)
+        mediaView.frame = frameForReferencedView()
+        mediaView.clipsToBounds = true
+        view.addSubview(mediaView)
 
         // Collection view
         collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: collectionViewLayout)
@@ -212,9 +213,9 @@ open class DTPhotoViewerController: UIViewController {
         // Update image frame whenever image changes and when the imageView is not being visible
         // imageView is only being visible during presentation or dismissal
         // For that reason, we should not update frame of imageView no matter what.
-        guard let image = imageView.image, imageView.isHidden else { return }
-        imageView.frame.size = imageViewSize(for: image)
-        imageView.center = view.center
+        guard let mediaSize = mediaView.mediaSize, mediaView.isHidden else { return }
+        mediaView.frame.size = imageViewSize(for: mediaSize)
+        mediaView.center = view.center
 
         // No datasource, only 1 item in collection view --> reloadData
         if dataSource == nil {
@@ -226,7 +227,7 @@ open class DTPhotoViewerController: UIViewController {
         super.viewWillTransition(to: size, with: coordinator)
         
         // Update layout
-        collectionViewLayout.currentIndex = currentPhotoIndex
+        collectionViewLayout.currentIndex = currentMediaIndex
     }
     
     open override func viewWillAppear(_ animated: Bool) {
@@ -294,7 +295,7 @@ open class DTPhotoViewerController: UIViewController {
     
     func _hideImageView(_ imageViewHidden: Bool) {
         // Hide image view should show collection view and vice versa
-        imageView.isHidden = imageViewHidden
+        mediaView.isHidden = imageViewHidden
         scrollView.isHidden = !imageViewHidden
     }
     
@@ -317,7 +318,7 @@ open class DTPhotoViewerController: UIViewController {
         // Delegate method
         delegate?.photoViewerControllerDidReceiveDoubleTapGesture?(self)
         
-        let indexPath = IndexPath(item: currentPhotoIndex, section: 0)
+        let indexPath = IndexPath(item: currentMediaIndex, section: 0)
         
         if let cell = collectionView.cellForItem(at: indexPath) as? DTPhotoCollectionViewCell {
             // Double tap
@@ -325,11 +326,11 @@ open class DTPhotoViewerController: UIViewController {
             
             if cell.scrollView.zoomScale == cell.scrollView.minimumZoomScale {
                 let location = gesture.location(in: view)
-                let center = cell.imageView.convert(location, from: view)
-                
+                let center = cell.mediaView.convert(location, from: view)
+
                 // Zoom in
                 cell.minimumZoomScale = 1.0
-                let rect = zoomRect(for: cell.imageView, scale: cell.scrollView.maximumZoomScale, center: center)
+                let rect = zoomRect(for: cell.mediaView, scale: cell.scrollView.maximumZoomScale, center: center)
                 cell.scrollView.zoom(to: rect, animated: true)
             } else {
                 // Zoom out
@@ -340,7 +341,7 @@ open class DTPhotoViewerController: UIViewController {
     }
     
     private func frameForReferencedView() -> CGRect {
-        if let referencedView,let superview = referencedView.superview {
+        if let referencedView, let superview = referencedView.superview {
             var frame = superview.convert(referencedView.frame, to: view)
 
             if abs(frame.size.width - referencedView.frame.size.width) > 1 {
@@ -377,14 +378,14 @@ open class DTPhotoViewerController: UIViewController {
     
     // Update zoom inside UICollectionViewCell
     private func _updateZoomScaleForSize(cell: DTPhotoCollectionViewCell, size: CGSize) {
-        let widthScale = size.width / cell.imageView.bounds.width
-        let heightScale = size.height / cell.imageView.bounds.height
+        let widthScale = size.width / cell.mediaView.bounds.width
+        let heightScale = size.height / cell.mediaView.bounds.height
         let zoomScale = min(widthScale, heightScale)
         
         cell.maximumZoomScale = zoomScale
     }
     
-    private func zoomRect(for imageView: UIImageView, scale: CGFloat, center: CGPoint) -> CGRect {
+    private func zoomRect(for imageView: MediaView, scale: CGFloat, center: CGPoint) -> CGRect {
         var zoomRect: CGRect = .zero
 
         // The zoom rect is in the content view's coordinates.
@@ -424,10 +425,10 @@ open class DTPhotoViewerController: UIViewController {
                 
             case .changed:
                 let translation = gesture.translation(in: gestureView)
-                imageView.center = CGPoint(x: view.center.x + translation.x, y: view.center.y + translation.y)
+                mediaView.center = CGPoint(x: view.center.x + translation.x, y: view.center.y + translation.y)
                 
                 //Change opacity of background view based on vertical distance from center
-                let yDistance = abs(imageView.center.y - view.center.y)
+                let yDistance = abs(mediaView.center.y - view.center.y)
                 var alpha = 1.0 - yDistance/(gestureView.center.y)
                 
                 if alpha < 0 {
@@ -438,7 +439,7 @@ open class DTPhotoViewerController: UIViewController {
                 
                 // Scale image
                 // Should not go smaller than max ratio
-                if let image = imageView.image, scaleWhileDragging {
+                if let mediaSize = mediaView.mediaSize, scaleWhileDragging {
                     let referenceSize = frameForReferencedView().size
                     
                     // If alpha = 0, then scale is max ratio, if alpha = 1, then scale is 1
@@ -448,11 +449,11 @@ open class DTPhotoViewerController: UIViewController {
                     // Do not use transform to scale down image view
                     // Instead change width & height
                     if scale < 1 && scale >= 0 {
-                        let maxSize = imageViewSize(for: image)
+                        let maxSize = imageViewSize(for: mediaSize)
                         let scaleSize = CGSize(width: maxSize.width * scale, height: maxSize.height * scale)
                         
                         if scaleSize.width >= referenceSize.width || scaleSize.height >= referenceSize.height {
-                            imageView.frame.size = scaleSize
+                            mediaView.frame.size = scaleSize
                         }
                     }
                 }
@@ -474,9 +475,9 @@ open class DTPhotoViewerController: UIViewController {
         }
     }
     
-    private func imageViewSize(for image: UIImage?) -> CGSize {
-        if let image {
-            let rect = AVMakeRect(aspectRatio: image.size, insideRect: view.bounds)
+    private func imageViewSize(for size: CGSize?) -> CGSize {
+        if let size {
+            let rect = AVMakeRect(aspectRatio: size, insideRect: view.bounds)
             return rect.size
         }
         
@@ -491,11 +492,11 @@ open class DTPhotoViewerController: UIViewController {
         
         // Calculate final frame
         var destinationFrame: CGRect = .zero
-        destinationFrame.size = imageViewSize(for: imageView.image)
+        destinationFrame.size = imageViewSize(for: mediaView.mediaSize)
 
         // Animate image view to the center
-        imageView.frame = destinationFrame
-        imageView.center = view.center
+        mediaView.frame = destinationFrame
+        mediaView.center = view.center
         
         // Change status bar to black style
         updateStatusBar(isHidden: true, defaultStatusBarStyle: true)
@@ -511,7 +512,7 @@ open class DTPhotoViewerController: UIViewController {
     }
     
     func dismissingAnimation() {
-        imageView.frame = frameForReferencedView()
+        mediaView.frame = frameForReferencedView()
         backgroundView.alpha = 0
     }
     
@@ -598,12 +599,12 @@ extension DTPhotoViewerController: UIViewControllerTransitioningDelegate {
 extension DTPhotoViewerController: UICollectionViewDataSource {
 
     // MARK: Public methods
-    public var currentPhotoIndex: Int {
+    public var currentMediaIndex: Int {
         return currentPhotoIndex(for: scrollView)
     }
     
     public var zoomScale: CGFloat {
-        let index = currentPhotoIndex
+        let index = currentMediaIndex
         let indexPath = IndexPath(item: index, section: 0)
         
         if let cell = collectionView.cellForItem(at: indexPath) as? DTPhotoCollectionViewCell {
@@ -615,25 +616,17 @@ extension DTPhotoViewerController: UICollectionViewDataSource {
     
     public func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         if let dataSource {
-            return dataSource.numberOfItems(in: self)
+            return dataSource.numberOfMedia(in: self)
         }
         return 1
     }
     
     public func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        guard let dataSource else { fatalError() }
+        let media = dataSource.mediaViewerController(self, mediaAt: indexPath.item)
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: kPhotoCollectionViewCellIdentifier, for: indexPath) as! DTPhotoCollectionViewCell
+        dataSource.mediaViewerController(self, configure: cell, with: media, at: indexPath.item)
         cell.delegate = self
-        
-        if let dataSource {
-            if dataSource.numberOfItems(in: self) > 0 {
-                dataSource.photoViewerController(self, configurePhotoAt: indexPath.item, withImageView: cell.imageView)
-                dataSource.photoViewerController?(self, configureCell: cell, forPhotoAt: indexPath.item)
-
-                return cell
-            }
-        }
-        
-        cell.imageView.image = imageView.image
         return cell
     }
 }
@@ -645,7 +638,7 @@ extension DTPhotoViewerController {
     // For each reuse identifier that the collection view will use, register either a class or a nib from which to instantiate a cell.
     // If a nib is registered, it must contain exactly 1 top level object which is a DTPhotoCollectionViewCell.
     // If a class is registered, it will be instantiated via alloc/initWithFrame:
-    public func registerClassPhotoViewer(_ cellClass: Swift.AnyClass?) {
+    public func registerClassPhotoViewer(_ cellClass: DTPhotoCollectionViewCell.Type) {
         collectionView.register(cellClass, forCellWithReuseIdentifier: kPhotoCollectionViewCellIdentifier)
     }
     
@@ -758,7 +751,7 @@ extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
     }
     
     open func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
-        let index = currentPhotoIndex
+        let index = currentMediaIndex
         
         // Method to override
         didScrollToPhoto(at: index)
@@ -772,7 +765,7 @@ extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
     }
     
     open func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return imageView
+        return mediaView
     }
     
     open func scrollViewDidZoom(_ scrollView: UIScrollView) {
@@ -788,7 +781,7 @@ extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
     
     open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate {
-            let index = currentPhotoIndex
+            let index = currentMediaIndex
             didScrollToPhoto(at: index)
             
             // Call delegate
@@ -797,7 +790,7 @@ extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
     }
     
     open func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        let index = currentPhotoIndex
+        let index = currentMediaIndex
         didScrollToPhoto(at: index)
         
         // Call delegate
@@ -808,24 +801,25 @@ extension DTPhotoViewerController: UICollectionViewDelegateFlowLayout {
     
     private func updateFrame(for size: CGSize) {
 
-        let y = max(0, (size.height - imageView.frame.height) / 2)
-        let x = max(0, (size.width - imageView.frame.width) / 2)
+        let y = max(0, (size.height - mediaView.frame.height) / 2)
+        let x = max(0, (size.width - mediaView.frame.width) / 2)
         
-        imageView.frame.origin = CGPoint(x: x, y: y)
+        mediaView.frame.origin = CGPoint(x: x, y: y)
     }
     
     // Update image view image
     func updateImageView(scrollView: UIScrollView) {
-        let index = currentPhotoIndex
-        
+        let index = currentMediaIndex
+
         if let dataSource {
+
             // Update image view before pan gesture happens
-            if dataSource.numberOfItems(in: self) > 0 {
-                dataSource.photoViewerController(self, configurePhotoAt: index, withImageView: imageView)
+            if dataSource.numberOfMedia(in: self) > 0 {
+                mediaView.media = dataSource.mediaViewerController(self, mediaAt: index)
             }
 
             // Change referenced image view
-            if let view = dataSource.photoViewerController?(self, referencedViewForPhotoAt: index) {
+            if let view = dataSource.mediaViewerController(self, referencedViewForMediaAt: index) {
                 referencedView = view
             }
         }
